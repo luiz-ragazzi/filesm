@@ -1,0 +1,24 @@
+Basic usage:
+cd c:\coding\filem
+python read_files.py -p "files"
+
+With date range:
+python read_files.py -p "files" -s 2026-01-01 -e 2026-01-14
+
+
+Full path example:
+python read_files.py -p "c:\coding\filem\files" -s 2026-01-01 -e 2026-01-14
+
+Without confirmation prompt:
+python read_files.py -p "files" -s 2026-01-10 --no-confirm
+
+
+View help:
+python read_files.py --help
+
+Arguments:
+
+-p, --path: Folder path (default: current folder)
+-s, --start-date: Start date in YYYY-MM-DD format
+-e, --end-date: End date in YYYY-MM-DD format
+--no-confirm: Skip confirmation prompt
