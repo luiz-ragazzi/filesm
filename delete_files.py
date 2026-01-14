@@ -7,6 +7,7 @@ import argparse
 def read_files_in_folder(folder_path=".", start_date=None, end_date=None):
     """
     Read and list all files in the specified folder, optionally filtered by date range.
+    Excludes picture files (jpg, jpeg, png, gif, bmp, webp, svg, tiff, ico).
     
     Args:
         folder_path (str): Path to the folder. Defaults to current folder.
@@ -14,13 +15,17 @@ def read_files_in_folder(folder_path=".", start_date=None, end_date=None):
         end_date (datetime): End date for filtering. If None, no upper bound.
     
     Returns:
-        list: List of file names in the folder matching the date criteria.
+        list: List of file names in the folder matching the date criteria, excluding pictures.
     """
+    picture_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.tiff', '.ico'}
     try:
         files = []
         for f in os.listdir(folder_path):
             file_path = os.path.join(folder_path, f)
             if os.path.isfile(file_path):
+                # Skip picture files
+                if Path(f).suffix.lower() in picture_extensions:
+                    continue
                 if start_date or end_date:
                     mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
                     if start_date and mod_time < start_date:
@@ -37,6 +42,7 @@ def read_files_in_folder(folder_path=".", start_date=None, end_date=None):
 def read_files_in_folder_pathlib(folder_path=".", start_date=None, end_date=None):
     """
     Read and list all files in the specified folder using pathlib, optionally filtered by date range.
+    Excludes picture files (jpg, jpeg, png, gif, bmp, webp, svg, tiff, ico).
     
     Args:
         folder_path (str): Path to the folder. Defaults to current folder.
@@ -44,13 +50,17 @@ def read_files_in_folder_pathlib(folder_path=".", start_date=None, end_date=None
         end_date (datetime): End date for filtering. If None, no upper bound.
     
     Returns:
-        list: List of file names in the folder matching the date criteria.
+        list: List of file names in the folder matching the date criteria, excluding pictures.
     """
+    picture_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.tiff', '.ico'}
     try:
         path = Path(folder_path)
         files = []
         for f in path.iterdir():
             if f.is_file():
+                # Skip picture files
+                if f.suffix.lower() in picture_extensions:
+                    continue
                 if start_date or end_date:
                     mod_time = datetime.fromtimestamp(f.stat().st_mtime)
                     if start_date and mod_time < start_date:
