@@ -4,7 +4,7 @@ from datetime import datetime
 import argparse
 
 
-def read_files_in_folder(folder_path=".", start_date=None, end_date=None):
+def read_files_in_folder(folder_path=".", start_date=None, end_date=None, recursive=False):
     """
     Read and list all files in the specified folder, optionally filtered by date range.
     Excludes picture files (jpg, jpeg, png, gif, bmp, webp, svg, tiff, ico).
@@ -13,41 +13,58 @@ def read_files_in_folder(folder_path=".", start_date=None, end_date=None):
         folder_path (str): Path to the folder. Defaults to current folder.
         start_date (datetime): Start date for filtering. If None, no lower bound.
         end_date (datetime): End date for filtering. If None, no upper bound.
+        recursive (bool): If True, search in subfolders. Defaults to False.
     
     Returns:
-        list: List of file names in the folder matching the date criteria, excluding pictures.
+        list: List of tuples (full_path, file_name) for files matching the date criteria, excluding pictures.
     """
     picture_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.tiff', '.ico'}
     try:
         files = []
-        for f in os.listdir(folder_path):
-            file_path = os.path.join(folder_path, f)
-            if os.path.isfile(file_path):
-                # Skip picture files
-                if Path(f).suffix.lower() in picture_extensions:
-                    continue
-                if start_date or end_date:
-                    mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
-                    if start_date and mod_time < start_date:
+        if recursive:
+            for root, dirs, filenames in os.walk(folder_path):
+                for f in filenames:
+                    file_path = os.path.join(root, f)
+                    # Skip picture files
+                    if Path(f).suffix.lower() in picture_extensions:
                         continue
-                    if end_date and mod_time > end_date:
+                    if start_date or end_date:
+                        mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+                        if start_date and mod_time < start_date:
+                            continue
+                        if end_date and mod_time > end_date:
+                            continue
+                    files.append((file_path, f))
+        else:
+            for f in os.listdir(folder_path):
+                file_path = os.path.join(folder_path, f)
+                if os.path.isfile(file_path):
+                    # Skip picture files
+                    if Path(f).suffix.lower() in picture_extensions:
                         continue
-                files.append(f)
+                    if start_date or end_date:
+                        mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+                        if start_date and mod_time < start_date:
+                            continue
+                        if end_date and mod_time > end_date:
+                            continue
+                    files.append((file_path, f))
         return files
     except Exception as e:
         print(f"Error reading folder: {e}")
         return []
 
 
-def read_files_in_folder_pathlib(folder_path=".", start_date=None, end_date=None):
+def read_files_in_folder_pathlib(folder_path=".", start_date=None, end_date=None, recursive=False):
     """
     Read and list all files in the specified folder using pathlib, optionally filtered by date range.
     Excludes picture files (jpg, jpeg, png, gif, bmp, webp, svg, tiff, ico).
-    
+      
     Args:
         folder_path (str): Path to the folder. Defaults to current folder.
         start_date (datetime): Start date for filtering. If None, no lower bound.
         end_date (datetime): End date for filtering. If None, no upper bound.
+        recursive (bool): If True, search in subfolders. Defaults to False.
     
     Returns:
         list: List of file names in the folder matching the date criteria, excluding pictures.
@@ -56,7 +73,8 @@ def read_files_in_folder_pathlib(folder_path=".", start_date=None, end_date=None
     try:
         path = Path(folder_path)
         files = []
-        for f in path.iterdir():
+        pattern = "**/*" if recursive else "*"
+        for f in path.glob(pattern):
             if f.is_file():
                 # Skip picture files
                 if f.suffix.lower() in picture_extensions:
@@ -74,7 +92,7 @@ def read_files_in_folder_pathlib(folder_path=".", start_date=None, end_date=None
         return []
 
 
-def delete_files(folder_path=".", start_date=None, end_date=None, confirm=True):
+def delete_files(folder_path=".", start_date=None, end_date=None, confirm=True, recursive=False):
     """
     Read files in a folder and delete them, optionally filtered by date range.
     
@@ -83,13 +101,14 @@ def delete_files(folder_path=".", start_date=None, end_date=None, confirm=True):
         start_date (datetime): Start date for filtering. If None, no lower bound.
         end_date (datetime): End date for filtering. If None, no upper bound.
         confirm (bool): If True, ask for confirmation before deleting. Defaults to True.
+        recursive (bool): If True, search in subfolders. Defaults to False.
     
     Returns:
         tuple: (number of deleted files, list of file names deleted)
     """
     try:
         # Get list of files to delete
-        files_to_delete = read_files_in_folder(folder_path, start_date, end_date)
+        files_to_delete = read_files_in_folder(folder_path, start_date, end_date, recursive)
         
         if not files_to_delete:
             print("No files found to delete.")
@@ -97,12 +116,12 @@ def delete_files(folder_path=".", start_date=None, end_date=None, confirm=True):
         
         # Show files to be deleted
         print(f"Files to be deleted ({len(files_to_delete)}):")
-        for file in files_to_delete:
-            print(f"  - {file}")
+        for file_path, file_name in files_to_delete:
+            print(f"  - {file_path}")
         
         # Ask for confirmation
         if confirm:
-            response = input("\nAre you sure you want to delete these files? (yes/no): ")
+            response = input(f"\nAre you sure you want to delete these files? Total files: {len(files_to_delete)} (yes/no): ")
             if response.lower() != "yes":
                 print("Deletion cancelled.")
                 return 0, []
@@ -110,21 +129,96 @@ def delete_files(folder_path=".", start_date=None, end_date=None, confirm=True):
         # Delete files
         deleted_count = 0
         deleted_files = []
-        for file in files_to_delete:
-            file_path = os.path.join(folder_path, file)
+        for file_path, file_name in files_to_delete:
             try:
                 os.remove(file_path)
                 deleted_count += 1
-                deleted_files.append(file)
-                print(f"Deleted: {file}")
+                deleted_files.append(file_name)
+                print(f"Deleted: {file_path}")
             except Exception as e:
-                print(f"Failed to delete {file}: {e}")
+                print(f"Failed to delete {file_path}: {e}")
         
-        print(f"\nSuccessfully deleted {deleted_count} file(s).")
+        print(f"\nTotal files found: {len(files_to_delete)}")
+        print(f"Successfully deleted {deleted_count} file(s).")
         return deleted_count, deleted_files
     
     except Exception as e:
         print(f"Error during deletion: {e}")
+        return 0, []
+
+
+def move_files_by_type(source_folder=".", file_type="", destination_folder=".", start_date=None, end_date=None, confirm=True, recursive=False):
+    """
+    Move files of a specific type to a destination folder, optionally filtered by date range.
+    
+    Args:
+        source_folder (str): Path to the source folder. Defaults to current folder.
+        file_type (str): File extension or type to move (e.g., ".pdf", ".txt"). If empty, moves all files.
+        destination_folder (str): Path to the destination folder.
+        start_date (datetime): Start date for filtering. If None, no lower bound.
+        end_date (datetime): End date for filtering. If None, no upper bound.
+        confirm (bool): If True, ask for confirmation before moving. Defaults to True.
+        recursive (bool): If True, search in subfolders. Defaults to False.
+    
+    Returns:
+        tuple: (number of moved files, list of file names moved)
+    """
+    import shutil
+    
+    try:
+        # Create destination folder if it doesn't exist
+        if not os.path.exists(destination_folder):
+            os.makedirs(destination_folder)
+            print(f"Created destination folder: {destination_folder}")
+        
+        # Normalize file_type to include dot if not present
+        if file_type and not file_type.startswith("."):
+            file_type = "." + file_type
+        
+        # Get list of files
+        all_files = read_files_in_folder(source_folder, start_date, end_date, recursive)
+        
+        # Filter by file type
+        files_to_move = []
+        for file_path, file_name in all_files:
+            if not file_type or Path(file_name).suffix.lower() == file_type.lower():
+                files_to_move.append((file_path, file_name))
+        
+        if not files_to_move:
+            print(f"No files found with type '{file_type}' to move.")
+            return 0, []
+        
+        # Show files to be moved
+        print(f"Files to be moved ({len(files_to_move)}):")
+        for file_path, file_name in files_to_move:
+            print(f"  - {file_path}")
+        
+        # Ask for confirmation
+        if confirm:
+            response = input(f"\nAre you sure you want to move these files? Total files: {len(files_to_move)} (yes/no): ")
+            if response.lower() != "yes":
+                print("Move cancelled.")
+                return 0, []
+        
+        # Move files
+        moved_count = 0
+        moved_files = []
+        for file_path, file_name in files_to_move:
+            try:
+                destination_path = os.path.join(destination_folder, file_name)
+                shutil.move(file_path, destination_path)
+                moved_count += 1
+                moved_files.append(file_name)
+                print(f"Moved: {file_path} -> {destination_path}")
+            except Exception as e:
+                print(f"Failed to move {file_path}: {e}")
+        
+        print(f"\nTotal files found: {len(files_to_move)}")
+        print(f"Successfully moved {moved_count} file(s).")
+        return moved_count, moved_files
+    
+    except Exception as e:
+        print(f"Error during move: {e}")
         return 0, []
 
 
@@ -161,6 +255,11 @@ Examples:
         action="store_true",
         help="Skip confirmation prompt before deleting"
     )
+    parser.add_argument(
+        "-r", "--recursive",
+        action="store_true",
+        help="Search in subfolders recursively"
+    )
     
     args = parser.parse_args()
     
@@ -188,7 +287,8 @@ Examples:
         folder_path=args.path,
         start_date=start_date,
         end_date=end_date,
-        confirm=confirm
+        confirm=confirm,
+        recursive=args.recursive
     )
 
 
