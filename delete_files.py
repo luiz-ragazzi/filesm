@@ -222,6 +222,94 @@ def move_files_by_type(source_folder=".", file_type="", destination_folder=".", 
         return 0, []
 
 
+def move_files_by_year(source_folder=".", destination_folder=None, confirm=True, recursive=False):
+    """
+    Move files to year-based folders based on their modification date.
+    Creates folders named with the year (e.g., 2025, 2026) and organizes files accordingly.
+    
+    Args:
+        source_folder (str): Path to the source folder. Defaults to current folder.
+        destination_folder (str): Base path where year folders will be created. If None, uses source_folder.
+        confirm (bool): If True, ask for confirmation before moving. Defaults to True.
+        recursive (bool): If True, search in subfolders. Defaults to False.
+    
+    Returns:
+        tuple: (number of moved files, dict with year as key and list of moved file names as value)
+    """
+    import shutil
+    
+    try:
+        # Use source folder as destination if not specified
+        if destination_folder is None:
+            destination_folder = source_folder
+        
+        # Get list of all files
+        all_files = read_files_in_folder(source_folder, recursive=recursive)
+        
+        if not all_files:
+            print("No files found to move.")
+            return 0, {}
+        
+        # Organize files by year
+        files_by_year = {}
+        for file_path, file_name in all_files:
+            try:
+                mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+                year = str(mod_time.year)
+                if year not in files_by_year:
+                    files_by_year[year] = []
+                files_by_year[year].append((file_path, file_name))
+            except Exception as e:
+                print(f"Warning: Could not get modification date for {file_path}: {e}")
+        
+        # Show files to be moved
+        print(f"Files to be moved by year ({len(all_files)} total):")
+        for year in sorted(files_by_year.keys()):
+            print(f"  {year}: {len(files_by_year[year])} file(s)")
+            for file_path, file_name in files_by_year[year]:
+                print(f"    - {file_path}")
+        
+        # Ask for confirmation
+        if confirm:
+            response = input(f"\nAre you sure you want to move these files? Total files: {len(all_files)} (yes/no): ")
+            if response.lower() != "yes":
+                print("Move cancelled.")
+                return 0, {}
+        
+        # Create year folders and move files
+        moved_count = 0
+        moved_files = {}
+        
+        for year, files in files_by_year.items():
+            year_folder = os.path.join(destination_folder, year)
+            
+            # Create year folder if it doesn't exist
+            if not os.path.exists(year_folder):
+                os.makedirs(year_folder)
+                print(f"Created folder: {year_folder}")
+            
+            moved_files[year] = []
+            
+            # Move files to year folder
+            for file_path, file_name in files:
+                try:
+                    destination_path = os.path.join(year_folder, file_name)
+                    shutil.move(file_path, destination_path)
+                    moved_count += 1
+                    moved_files[year].append(file_name)
+                    print(f"Moved: {file_path} -> {destination_path}")
+                except Exception as e:
+                    print(f"Failed to move {file_path}: {e}")
+        
+        print(f"\nTotal files found: {len(all_files)}")
+        print(f"Successfully moved {moved_count} file(s).")
+        return moved_count, moved_files
+    
+    except Exception as e:
+        print(f"Error during move: {e}")
+        return 0, {}
+
+
 def main():
     """
     Command-line interface for deleting files with date filtering.
