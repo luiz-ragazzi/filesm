@@ -310,6 +310,106 @@ def move_files_by_year(source_folder=".", destination_folder=None, confirm=True,
         return 0, {}
 
 
+def move_files_by_keyword(source_folder=".", keywords=None, confirm=True, recursive=False):
+    """
+    Move files to folders based on keywords found in their filenames.
+    Creates folders for each keyword and organizes files accordingly.
+    
+    Args:
+        source_folder (str): Path to the source folder. Defaults to current folder.
+        keywords (list): List of keywords to match (e.g., ["Stellar", "AXI"]). If None, defaults to ["Stellar", "AXI"].
+        confirm (bool): If True, ask for confirmation before moving. Defaults to True.
+        recursive (bool): If True, search in subfolders. Defaults to False.
+    
+    Returns:
+        tuple: (number of moved files, dict with keyword as key and list of moved file names as value)
+    """
+    import shutil
+    
+    try:
+        # Default keywords if not specified
+        if keywords is None:
+            keywords = ["Stellar", "AXI"]
+        
+        # Get list of all files
+        all_files = read_files_in_folder(source_folder, recursive=recursive)
+        
+        if not all_files:
+            print("No files found to move.")
+            return 0, {}
+        
+        # Organize files by keyword
+        files_by_keyword = {}
+        unmatched_files = []
+        
+        for file_path, file_name in all_files:
+            matched = False
+            for keyword in keywords:
+                if keyword.lower() in file_name.lower():
+                    if keyword not in files_by_keyword:
+                        files_by_keyword[keyword] = []
+                    files_by_keyword[keyword].append((file_path, file_name))
+                    matched = True
+                    break  # Stop after first match
+            
+            if not matched:
+                unmatched_files.append((file_path, file_name))
+        
+        # Show files to be moved
+        total_to_move = sum(len(files) for files in files_by_keyword.values())
+        print(f"Files to be moved by keyword ({total_to_move} total):")
+        for keyword in keywords:
+            if keyword in files_by_keyword:
+                print(f"  {keyword}: {len(files_by_keyword[keyword])} file(s)")
+                for file_path, file_name in files_by_keyword[keyword]:
+                    print(f"    - {file_path}")
+        
+        if unmatched_files:
+            print(f"  Unmatched: {len(unmatched_files)} file(s)")
+            for file_path, file_name in unmatched_files:
+                print(f"    - {file_path}")
+        
+        # Ask for confirmation
+        if confirm and total_to_move > 0:
+            response = input(f"\nAre you sure you want to move these files? Total files: {total_to_move} (yes/no): ")
+            if response.lower() != "yes":
+                print("Move cancelled.")
+                return 0, {}
+        
+        # Create keyword folders and move files
+        moved_count = 0
+        moved_files = {}
+        
+        for keyword, files in files_by_keyword.items():
+            keyword_folder = os.path.join(source_folder, keyword)
+            
+            # Create keyword folder if it doesn't exist
+            if not os.path.exists(keyword_folder):
+                os.makedirs(keyword_folder)
+                print(f"Created folder: {keyword_folder}")
+            
+            moved_files[keyword] = []
+            
+            # Move files to keyword folder
+            for file_path, file_name in files:
+                try:
+                    destination_path = os.path.join(keyword_folder, file_name)
+                    shutil.move(file_path, destination_path)
+                    moved_count += 1
+                    moved_files[keyword].append(file_name)
+                    print(f"Moved: {file_path} -> {destination_path}")
+                except Exception as e:
+                    print(f"Failed to move {file_path}: {e}")
+        
+        print(f"\nTotal files found: {len(all_files)}")
+        print(f"Successfully moved {moved_count} file(s).")
+        return moved_count, moved_files
+    
+    except Exception as e:
+        print(f"Error during move: {e}")
+        return 0, {}
+
+
 def main():
     """
     Command-line interface for deleting files with date filtering.
